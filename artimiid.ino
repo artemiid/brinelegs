@@ -1,23 +1,19 @@
+
 // Artimiid art boat legs
 
-// pins used for the LEDs
-// LED1 13
-// LED2 12
+#include <FastLED.h>
+#define NUM_LEDS 20
+#define DATA_PIN1 11
+#define DATA_PIN2 12
 
+CRGB leds[NUM_LEDS];
 
-// pins used for the switches
-// S1 7
-// S2 6
-// S3 5
-// S4 4
-// S5 3
-// S6 2
-
-// state of each 5 switches (0 or 1)
-int dip_state[5];
 
 // counters
 int i, j;
+
+// state of each 5 switches (0 or 1)
+int dip_state[5];
 
 void setup() {
 
@@ -30,13 +26,39 @@ void setup() {
   // setup serial port
   Serial.begin(9600);
   Serial.println("Serial port open");
+  
+  FastLED.addLeds<NEOPIXEL, DATA_PIN1>(leds, NUM_LEDS);
+  FastLED.addLeds<NEOPIXEL, DATA_PIN2>(leds, NUM_LEDS);
 }
 
 
 void loop() {
+  /* DEBUG SERIAL FOR DIPS */
   for (i = 0, j = 6; i < 5, j >= 2; i++, j--) {
-    dip_state[i] = digitalRead(j);
-    Serial.print(dip_state[i]);
+    
+    Serial.print("\n");
+    Serial.print(address(), DEC);
+    Serial.print("\n");
   }
+  
   Serial.println();
+  
+  for(int dot = 0; dot < NUM_LEDS; dot++) { 
+    leds[dot] = CRGB::Blue;
+    FastLED.show();
+    // clear this led for the next time around the loop
+    leds[dot] = CRGB::Black;
+    delay(30);
+  };
+}
+
+//Create Address from DIP Switch (5 positions used)
+byte address(){
+  
+  //Get the switches state
+  for(i=2; i<=6; i++){
+    j = (j << 1) | digitalRead(i);   // read the input pin
+  }
+  
+  return j; //return address
 }
