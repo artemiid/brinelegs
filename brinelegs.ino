@@ -1,10 +1,11 @@
+                                                                                                                                                                              
+
 // Artimiid art boat legs
 
 #include <FastLED.h>
 
 // pin definitions
-#define LEDS_PIN1 11
-#define LEDS_PIN2 12
+#define LEDS_PIN1 9
 uint8_t dip_switch_pins[] = {6,5,4,3,2};
 
 #define NUM_LEDS 15
@@ -23,6 +24,17 @@ uint8_t g_address;
 
 uint8_t g_hue = 0;
 
+
+
+
+// ----------------------------------------------------------------------------
+// serial debug
+unsigned long lastTick=0;
+unsigned int sec=1;
+unsigned int minute=0;
+unsigned int hour=0;
+
+
 // ----------------------------------------------------------------------------
 // setup & loop
 
@@ -35,7 +47,6 @@ void setup() {
 
     // 2 led strips
     FastLED.addLeds<NEOPIXEL, LEDS_PIN1>(leds, NUM_LEDS);
-    FastLED.addLeds<NEOPIXEL, LEDS_PIN2>(leds, NUM_LEDS);
 
     // set master brightness control
     FastLED.setBrightness(BRIGHTNESS);
@@ -61,13 +72,38 @@ SimplePatternList g_patterns = {
 uint8_t g_current_pattern = 0;
 
 void loop() {
-
+    
     FastLED.show();
+    
     g_patterns[g_current_pattern]();
 
+    if (millis() - lastTick >= 1000) {          
+          sec++;
+          if (sec==60)
+            {minute++;
+              sec=0;
+            }
+          if(minute==60)
+            { hour++;
+              minute=0;
+            }
+          lastTick = millis();
+        //Serial.println(millis());    
+    }
+    if (millis() - lastTick >= 10000) {          
+          Serial.print(hour,DEC);
+          Serial.print(" : ");
+          Serial.print(minute,DEC);
+          Serial.print(" : ");
+          Serial.print(sec,DEC);
+          Serial.println();
+    }
+    
+ 
+
     // do some periodic updates
-    EVERY_N_MILLISECONDS( 20 ) { g_hue++; } // slowly cycle the "base color" through the rainbow
-    EVERY_N_SECONDS( 10 ) { next_pattern(); } // change patterns periodically
+    //EVERY_N_MILLISECONDS( 20 ) { g_hue++; } // slowly cycle the "base color" through the rainbow
+    //EVERY_N_SECONDS( 10 ) { next_pattern(); } // change patterns periodically
 }
 
 // ----------------------------------------------------------------------------
