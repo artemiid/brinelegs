@@ -5,11 +5,11 @@
 #include <FastLED.h>
 
 // pin definitions
-#define LEDS_PIN1 9
+#define LEDS_PIN 9
 uint8_t dip_switch_pins[] = {6,5,4,3,2};
 
-#define NUM_LEDS 15
-#define BRIGHTNESS      96
+#define NUM_LEDS        150
+#define BRIGHTNESS      200
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
@@ -25,90 +25,8 @@ uint8_t g_address;
 uint8_t g_hue = 0;
 
 
-
-
-// ----------------------------------------------------------------------------
-// serial debug
-unsigned long lastTick=0;
-unsigned int sec=1;
-unsigned int minute=0;
-unsigned int hour=0;
-
-
-// ----------------------------------------------------------------------------
-// setup & loop
-
-void setup() {
-
-    // address dip switch
-    for (int i = 0; i < ARRAY_SIZE(dip_switch_pins); i++) {
-        pinMode(dip_switch_pins[i], INPUT_PULLUP);
-    }
-
-    // 2 led strips
-    FastLED.addLeds<NEOPIXEL, LEDS_PIN1>(leds, NUM_LEDS);
-
-    // set master brightness control
-    FastLED.setBrightness(BRIGHTNESS);
-
-    g_address = get_address();
-
-    // setup serial port
-    Serial.begin(9600);
-    Serial.println("----------------------");
-    Serial.print("Brinelegs address: ");
-    Serial.println(g_address);
-}
-
-typedef void (*SimplePatternList[])();
-SimplePatternList g_patterns = { 
-    rainbow, 
-    rainbowWithGlitter, 
-    confetti, 
-    sinelon, 
-    juggle, 
-    bpm 
-};
-uint8_t g_current_pattern = 0;
-
-void loop() {
-    
-    FastLED.show();
-    
-    g_patterns[g_current_pattern]();
-
-    if (millis() - lastTick >= 1000) {          
-          sec++;
-          if (sec==60)
-            {minute++;
-              sec=0;
-            }
-          if(minute==60)
-            { hour++;
-              minute=0;
-            }
-          lastTick = millis();
-        //Serial.println(millis());    
-    }
-    if (millis() - lastTick >= 10000) {          
-          Serial.print(hour,DEC);
-          Serial.print(" : ");
-          Serial.print(minute,DEC);
-          Serial.print(" : ");
-          Serial.print(sec,DEC);
-          Serial.println();
-    }
-    
- 
-
-    // do some periodic updates
-    //EVERY_N_MILLISECONDS( 20 ) { g_hue++; } // slowly cycle the "base color" through the rainbow
-    //EVERY_N_SECONDS( 10 ) { next_pattern(); } // change patterns periodically
-}
-
 // ----------------------------------------------------------------------------
 // patterns
-
 
 void rainbow() 
 {
@@ -128,8 +46,21 @@ void confetti()
 {
     // random colored speckles that blink in and fade smoothly
     fadeToBlackBy( leds, NUM_LEDS, 10);
-    int pos = random16(NUM_LEDS);
+    int pos = random8(NUM_LEDS);
     leds[pos] += CHSV( g_hue + random8(64), 200, 255);
+}
+
+void big_confetti() {
+    fadeToBlackBy( leds, NUM_LEDS, 4);
+    if (random8() < 35) {
+        int pos = random8(5, NUM_LEDS - 5);
+        int hue = g_hue + random8(64);
+        leds[pos-2] += CHSV( hue, 200, 150);
+        leds[pos-1] += CHSV( hue, 200, 200);
+        leds[pos  ] += CHSV( hue, 200, 255);
+        leds[pos+1] += CHSV( hue, 200, 200);
+        leds[pos+2] += CHSV( hue, 200, 150);
+    }
 }
 
 void sinelon()
@@ -162,6 +93,71 @@ void juggle() {
 }
 
 // ----------------------------------------------------------------------------
+// setup & loop
+
+
+typedef void (*SimplePatternList[])();
+SimplePatternList patterns_center = { 
+    rainbow, 
+    rainbowWithGlitter, 
+    confetti, 
+    sinelon, 
+    juggle, 
+    bpm 
+};
+
+SimplePatternList patterns_edge = { 
+    big_confetti, 
+};
+
+uint8_t current_pattern = 0;
+
+SimplePatternList* patterns = (SimplePatternList*)&patterns_center;
+uint8_t patterns_count = ARRAY_SIZE(patterns_center);
+
+
+void setup() {
+
+    // address dip switch
+    for (int i = 0; i < ARRAY_SIZE(dip_switch_pins); i++) {
+        pinMode(dip_switch_pins[i], INPUT_PULLUP);
+    }
+
+    // led strip
+    FastLED.addLeds<NEOPIXEL, LEDS_PIN>(leds, NUM_LEDS);
+
+    // set master brightness control
+    FastLED.setBrightness(BRIGHTNESS);
+
+    g_address = get_address();
+
+    if (g_address <= 4 || g_address >= 20) {
+        patterns = (SimplePatternList*)&patterns_edge;
+        patterns_count = ARRAY_SIZE(patterns_edge);
+    }
+}
+
+uint32_t m = 0;
+uint32_t pattern_start = 0;
+
+void loop() {
+
+    FastLED.show();
+    (*patterns)[current_pattern]();
+
+
+    m = millis();
+    if (m - pattern_start >= 10000) {
+        next_pattern();
+        pattern_start += 10000;
+    }
+
+    // do some periodic updates
+    EVERY_N_MILLISECONDS( 20 ) { g_hue++; } // slowly cycle the "base color" through the rainbow
+}
+
+
+// ----------------------------------------------------------------------------
 // helpers
 
 void add_glitter( fract8 chanceOfGlitter) 
@@ -181,5 +177,5 @@ uint8_t get_address() {
 }
 
 void next_pattern() {
-    g_current_pattern = (g_current_pattern + 1) % ARRAY_SIZE(g_patterns);
+    current_pattern = (current_pattern + 1) % patterns_count;
 }
